@@ -6,13 +6,6 @@ import numpy as np
 import os.path
 
 #VARIABLES SETTING COLUMN POSITIONS
-colTemperature = 0
-colField = 1
-colV = [2,4,6,8]
-colC = [3,5,7,9]
-colRes = [2,3,4,5]
-colErr = [6,7,8,9]
-colDC = [10,11,12,13]
 names = ['HallA', 'HallB', 'VDPA', 'VDPB']
 plotpos = [1,3,2,4]
 
@@ -36,24 +29,24 @@ elif len(sys.argv) > 1:
 else:
     print filename + " is neither RvsH nor RvsT"
     sys.exit(1)
-IVCurves = py.loadtxt(filename, comments='\\*', delimiter='\t') #load text into an array, ignoring header lines
+
+IVCurves = np.genfromtxt(filename, comments='\\*', delimiter='\t', names=('Temperature', 'Field', 'VHallA', 'IHallA', 'VHallB', 'IHallB', 'VVDPA', 'IVDPA', 'VVDPB', 'IVDPB')) #load text into a structured array, ignoring header lines
 print "Reading " + filename
 
 s = IVCurves.shape
 #determine number of points per IV curve
 pointsPerCurve = 1
 if filetype==0:
-    while pointsPerCurve < s[0] and IVCurves[pointsPerCurve,colTemperature] == IVCurves[0,colTemperature]: #check same temperature value
+    while pointsPerCurve < s[0] and IVCurves['Temperature'][pointsPerCurve] == IVCurves['Temperature'][0]: #check same temperature value
         pointsPerCurve += 1
 else:
-    while pointsPerCurve < s[0] and IVCurves[pointsPerCurve,colField] == IVCurves[0,colField]: #check same field value
+    while pointsPerCurve < s[0] and IVCurves[pointsPerCurve]['Field'] == IVCurves[0]['Field']: #check same field value
         pointsPerCurve += 1
 print str(pointsPerCurve) + " points per IV curve"
 
 #reshape IV curves so that the first index is the curve #, then each point in the curve, then temp, current, voltage, etc.
-IVCurves.shape = (s[0]/pointsPerCurve, pointsPerCurve, s[1])
+IVCurves.shape = (s[0]/pointsPerCurve, pointsPerCurve)
 s = IVCurves.shape
-print s
 
 #create inlier and outlier masks for each curve for RANSAC robust linear regression, to remove bad data points
 #inlier_mask = np.array(
@@ -64,6 +57,7 @@ def saveoutput(event):
         print "Overwriting " + linregfilename
     else:
         print "Saving " + linregfilename
+    #columns = 'Temperature (K)\tField (Oe)\tRes ' + ' (Ohm)\tRes '.join(names) + ' (Ohm)\tErr ' + ' (Ohm)\tErr '.join(names) + ' (Ohm)\tDC Off ' + ' (V)\tDC Off '.join(names) + ' (V)'
     names.insert(0,'') #insert an empty string for easy naming of things
     columns = 'Temperature\tField' + '\tRes '.join(names) + '\tErr '.join(names) + '\tDC Off '.join(names) + '\nK\tOe' + '\tOhm'*8 + '\tV'*4
     names.pop(0) #remove the empty string
@@ -73,23 +67,23 @@ def saveoutput(event):
 #Get Linear regression, either calculated or from existing file
 linregfilename = 'LinFitPy'.join(filename.rsplit('IVCurves',1)) # replaces the last occurrence of IVCurves with LinFitPy
 if os.path.exists(linregfilename):
-    results = py.loadtxt(linregfilename, comments='\\*', delimiter='\t') #load text into array
+    results = np.genfromtxt(linregfilename, comments='\\*', delimiter='\t', names=['Temperature', 'Field'] + ['Res' + name for name in names] + ['Err' + name for name in names] + ['DCOff' + name for name in names]) #load text into structured array
     print "Reading " + linregfilename
 else:
     #Calculate linear fit for each IV curve
     s = IVCurves.shape
-    results = np.zeros((s[0], 14))
-    results[:,colTemperature] = IVCurves[:,0,colTemperature] #T, H are the same for each curve, so arbitrarily choose the first value
-    results[:,colField] = IVCurves[:,0,colField]
+    results = np.zeros(s[0], dtype=[('Temperature', '<f8'), ('Field', '<f8')] + [('Res'+name, '<f8') for name in names] + [('Err'+name, '<f8') for name in names] + [('DCOff'+name, '<f8') for name in names])
+    results['Temperature'] = IVCurves['Temperature'][:,0] #T, H are the same for each curve, so arbitrarily choose the first value
+    results['Field'] = IVCurves['Field'][:,0]
     
     for curve in xrange(0, s[0]):
         for i in xrange(0,4):
-            p, cov = np.polyfit(IVCurves[curve,:,colC[i]], IVCurves[curve,:,colV[i]], 1, cov=True)
+            p, cov = np.polyfit(IVCurves['I'+names[i]][curve,:], IVCurves['V'+names[i]][curve,:], 1, cov=True)
             
             #save resistance, error in resistance, and DC offset
-            results[curve,colRes[i]] = p[0]
-            results[curve,colDC[i]] = p[1]
-            results[curve,colErr[i]] = cov[0,0]
+            results['Res'+names[i]][curve] = p[0]
+            results['DCOff'+names[i]][curve] = p[1]
+            results['Err'+names[i]][curve] = cov[0,0]
     
 #values for slider
 tempindex = 0
@@ -111,17 +105,17 @@ def plotcurves(index):
         py.subplot(2,2,plotpos[i])
         py.cla()
         #plot data
-        x = curve[:,colV[i]]
-        y = curve[:,colC[i]]
+        x = curve['V'+names[i]]
+        y = curve['I'+names[i]]
         py.plot(x, y,'.')
         #plot linear fit
-        fitcurve = np.poly1d([results[index,colRes[i]], results[index,colDC[i]]])
+        fitcurve = np.poly1d([results['Res'+names[i]][index], results['DCOff'+names[i]][index]])
         py.plot(fitcurve(y), y, 'r')
         py.title(names[i])
         py.xlabel('Voltage (V)')
         py.ylabel('Current (A)')
     
-    py.suptitle(str(curve[0,colTemperature])+" K, "+str(curve[0,colField])+" Oe", size='x-large', x = .55, y = .2)
+    py.suptitle(str(curve['Temperature'][0])+" K, "+str(curve['Field'][0])+" Oe", size='x-large', x = .55, y = .2)
     py.draw()
     #py.hold(False)
 plotcurves(tempindex)
