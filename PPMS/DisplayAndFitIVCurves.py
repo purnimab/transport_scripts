@@ -75,7 +75,18 @@ else:
     linreglvfilename = ending.join(filename.rsplit('IVCurves',1))
 labview = os.path.exists(linreglvfilename)
 if labview:
-    resultslv = np.genfromtxt(linreglvfilename, comments='\\*', delimiter='\t', names=['Temperature', 'Field'] + ['Res' + name for name in names]) #load text into structured array
+    #columns are different for data taken with source-measure unit RvsT vs RvsH or nanovoltmeter - check for "Max Current" fields in header
+    lvcolumns = ['Temperature', 'Field'] + ['Res'+name for name in names]
+    if filetype == 0:
+        inputfile = open(linreglvfilename,'r')
+        headerline = inputfile.readline()
+        while headerline[0:2] == '\\*' and headerline.find('Sample Temp') == -1:
+            headerline = inputfile.readline()
+        if headerline.find('Max Current') > -1: #RvsT SMU
+            namesSMURT = ['VDPA', 'VDPB', 'HallA', 'HallB']
+            lvcolumns = ['Temperature', 'Field', 'IMax1', 'IMax2'] + ['Res'+name for name in namesSMURT]
+        inputfile.close()
+    resultslv = np.genfromtxt(linreglvfilename, comments='\\*', delimiter='\t', names=lvcolumns) #load text into structured array
     print "Reading " + linreglvfilename
 
 #linear fit throwing out outliers - identifying the range of points to use
@@ -314,6 +325,12 @@ def reset(event):
         linearfit(curve, name, 0)
     plotcurves(curve)
     
+def recalculate(event):
+    for curve in xrange(0,s[0]):
+        for name in names:
+            linearfit(curve, name, 0)
+    plotcurves(curve)
+    
 #create a save fits button
 axsave = py.axes([0.025, 0.1, 0.1, 0.03])
 savebutton = Button(axsave, 'Save Fits')
@@ -337,6 +354,9 @@ resetallbutton.on_clicked(resetall)
 axreset = py.axes([0.025, 0.4, 0.1, 0.03])
 resetbutton = Button(axreset, 'Reset This T/H Fit')
 resetbutton.on_clicked(reset)
+axrecal = py.axes([0.025, 0.45, 0.1, 0.03])
+recalbutton = Button(axrecal, 'Recalculate')
+recalbutton.on_clicked(recalculate)
 
 #bind rectangle selector to select points in IV curve to use for fitting
 def line_select_callback0(eclick, erelease):
