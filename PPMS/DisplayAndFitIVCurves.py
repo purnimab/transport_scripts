@@ -24,8 +24,8 @@ if filename.count('RvsT') > 0:
 elif filename.count('RvsH') > 0:
     filetype = 1
     print filetypes[filetype] + ' Sweep'
-elif len(sys.argv) > 1:
-    filetype = int(sys.argv[2] == 'RvsH')
+elif len(sys.argv) > 2:
+    filetype = int(sys.argv[-1] == 'RvsH') #check last
     print filetypes[filetype] + ' Sweep'
 else:
     print filename + " is neither RvsH nor RvsT"
@@ -50,25 +50,25 @@ IVCurves.shape = (s[0]/pointsPerCurve, pointsPerCurve)
 s = IVCurves.shape
 
 #create a range identifier to store which range of the IV curve is "good"
-values = np.zeros((2, s[0]), dtype = [(name, '<i4') for name in names])
+values = np.zeros((2, s[0]), dtype = [(name, '<i4') for name in names]) #first column in lower limit
 for name in names:
-    values[name][1].fill(pointsPerCurve)
-#values = [[0]*s[0], [pointsPerCurve]*s[0]] #first column is lower limit, second column is upper limit
+    values[name][1].fill(pointsPerCurve) #second column is upper limit
 
-#save output file
-def saveoutput(event):
-    if os.path.exists(linregfilename):
-        print "Overwriting " + linregfilename
+#Get Linear regression from existing file calculated by LabView
+if len(sys.argv) > 2 and os.path.exists(sys.argv[2]): #more specified than just one file, and second arg. is a filename
+    linreglvfilename = sys.argv[2]
+else:
+    if filetype == 0:
+        ending = 'LinFitRes'
     else:
-        print "Saving " + linregfilename
-    #columns = 'Temperature (K)\tField (Oe)\tRes ' + ' (Ohm)\tRes '.join(names) + ' (Ohm)\tErr ' + ' (Ohm)\tErr '.join(names) + ' (Ohm)\tDC Off ' + ' (V)\tDC Off '.join(names) + ' (V)'
-    names.insert(0,'') #insert an empty string for easy naming of things
-    columns = 'Temperature\tField' + '\tRes '.join(names) + '\tErr '.join(names) + '\tDC Off '.join(names) + '\nK\tOe' + '\tOhm'*8 + '\tV'*4
-    names.pop(0) #remove the empty string
-    np.savetxt(linregfilename, results, delimiter='\t', header=columns, comments='\\*')
-    sys.stdout.flush()
+        ending = 'LinResFit'
+    linreglvfilename = ending.join(filename.rsplit('IVCurves',1))
+labview = os.path.exists(linreglvfilename)
+if labview:
+    resultslv = np.genfromtxt(linreglvfilename, comments='\\*', delimiter='\t', names=['Temperature', 'Field'] + ['Res' + name for name in names]) #load text into structured array
+    print "Reading " + linreglvfilename
 
-#linear fit throwing out outliers
+#linear fit throwing out outliers - identifying the range of points to use
 #starting from ends
 def find_best_polyfit(index, name):
     x = IVCurves['I'+name][index]
@@ -76,7 +76,7 @@ def find_best_polyfit(index, name):
     low, high = 0, pointsPerCurve
     p_cutoff = 0.01
     debounce = 2 #need two points to have seen a change in slope
-
+    #look from beginning
     seen = 0
     for j in xrange(0,pointsPerCurve):
         slope, intercept, r, p, stderr = stats.linregress(x[:j+1], y[:j+1])
@@ -84,11 +84,10 @@ def find_best_polyfit(index, name):
             seen += 1
         else:
             seen = max(0, seen-1) #the two points don't have to be in a row
-
         if seen == debounce:
-            low = max(j - debounce, 0)
+            low = max(j - debounce-1, 0)
             break
-
+    #look from end
     seen = 0
     for j in xrange(1, pointsPerCurve-low):
         slope, intercept, r, p, stderr = stats.linregress(x[-j-1:], y[-j-1:])
@@ -96,16 +95,12 @@ def find_best_polyfit(index, name):
             seen += 1
         else:
             seen = max(0, seen-1)
-
         if seen == debounce:
-            high = pointsPerCurve - (j - debounce)
+            high = min(pointsPerCurve - (j - debounce-1), pointsPerCurve)
             break
-
+    #set limits
     values[name][0][index] = low
     values[name][1][index] = high
-    #slope, intercept, r, p, stderr = stats.linregress(x[low:high], y[low:high])
-    #return slope, intercept, stderr
-    return stats.linregress(x[low:high], y[low:high])
     
 #starting from middle
 def fitresfindindex(index, name):
@@ -114,11 +109,11 @@ def fitresfindindex(index, name):
     lower = int(len(i)/2-1)
     upper = int(len(i)/2+2)
     r2 = 1
-    up = False
+    up = False #add points in alternating directions
     lowerFound = False
     upperFound = False
     slope, intercept, r2, p, err = stats.linregress(i[lower:upper], v[lower:upper])
-    perc = 9
+    #perc = 9
     r2limit = .98#(1+perc)*abs(r2)-perc
     while (not (upperFound and lowerFound) and abs(r2) > r2limit):
         if up and not upperFound:
@@ -141,29 +136,26 @@ def fitresfindindex(index, name):
             else:
                 lower -= 1
             up = not upperFound
-        #p, cov = np.polyfit(i[lower:upper], v[lower:upper], 1, cov=True)
+    #set limits
     values[name][0][index] = lower
     values[name][1][index] = upper
-    #return np.polyfit(i[lower:upper], v[lower:upper], 1, cov=True)
-    return stats.linregress(i[lower:upper], v[lower:upper])
             
-def linearfit(index, name, findIndex):
-    if findIndex == 0:
-        i = IVCurves['I'+name][index]
-        v = IVCurves['V'+name][index]
-        start = values[name][0][index]
-        end = values[name][1][index]
-        slope, intercept, r2, p, err = stats.linregress(i[start:end], v[start:end])
-    elif findIndex == 1:
-        slope, intercept, r2, p, err = find_best_polyfit(index, name)
+def linearfit(index, name, findIndex): #findIndex = 0: use given limits, 1: find limits from outside, 2: find limits from middle
+    if findIndex == 1:
+        find_best_polyfit(index, name)
     elif findIndex == 2:
-        slope, intercept, r2, p, err = fitresfindindex(index, name)
-        
+        fitresfindindex(index, name)
+    i = IVCurves['I'+name][index]
+    v = IVCurves['V'+name][index]
+    start = values[name][0][index]
+    end = values[name][1][index]
+    slope, intercept, r2, p, err = stats.linregress(i[start:end], v[start:end]) 
+    #p, cov = np.polyfit(i[start:end], v[start:end], 1, cov=True)
     results['Res'+name][index] = slope #p[0]
     results['DCOff'+name][index] = intercept #p[1]
     results['Err'+name][index] = err #cov[0,0]
 
-#Get Linear regression, either calculated or from existing file
+#Get Linear regression, either calculated or from existing file calculated by python
 linregfilename = 'LinFitPy'.join(filename.rsplit('IVCurves',1)) # replaces the last occurrence of IVCurves with LinFitPy
 if os.path.exists(linregfilename):
     results = np.genfromtxt(linregfilename, comments='\\*', delimiter='\t', names=['Temperature', 'Field'] + ['Res' + name for name in names] + ['Err' + name for name in names] + ['DCOff' + name for name in names]) #load text into structured array
@@ -185,6 +177,20 @@ else:
             #results['Res'+names[i]][curve] = p[0]
             #results['DCOff'+names[i]][curve] = p[1]
             #results['Err'+names[i]][curve] = cov[0,0]
+
+#save output file - titles and units on separate lines is easier to read into Origin
+def saveoutput(event):
+    if os.path.exists(linregfilename):
+        print "Overwriting " + linregfilename
+    else:
+        print "Saving " + linregfilename
+    #columns = 'Temperature (K)\tField (Oe)\tRes ' + ' (Ohm)\tRes '.join(names) + ' (Ohm)\tErr ' + ' (Ohm)\tErr '.join(names) + ' (Ohm)\tDC Off ' + ' (V)\tDC Off '.join(names) + ' (V)'
+    names.insert(0,'') #insert an empty string for easy naming of things
+    columns = 'Temperature\tField' + '\tRes '.join(names) + '\tErr '.join(names) + '\tDC Off '.join(names) + '\nK\tOe' + '\tOhm'*8 + '\tV'*4
+    names.pop(0) #remove the empty string
+    np.savetxt(linregfilename, results, delimiter='\t', header=columns, comments='\\*')
+    sys.stdout.flush()
+
 #values for slider
 tempindex = 0
 minindex = 0
@@ -209,19 +215,23 @@ def plotcurves(index):
         name = names[i]
         x = curve['V'+name]
         y = curve['I'+name]
-        #plot unused points in green
+        #plot unused points in yellow
         lower = values[name][0][index]
         if lower > 0:
-            py.plot(x[:lower], y[:lower], '.g')
+            py.plot(x[:lower], y[:lower], '.y')
         upper = values[name][1][index]
         if upper < pointsPerCurve:
-            py.plot(x[upper:], y[upper:], '.g')
-        #plot used points in blue
-        py.plot(x[lower:upper], y[lower:upper],'.')
+            py.plot(x[upper:], y[upper:], '.y')
+        #plot used points in black
+        py.plot(x[lower:upper], y[lower:upper],'.k')
         #plot linear fit
         fitcurve = np.poly1d([results['Res'+name][index], results['DCOff'+name][index]])
         #plot fit in red
         py.plot(fitcurve(y), y, 'r')
+        if labview:
+            fitcurvelv = np.poly1d([resultslv['Res'+name][index], 0])
+            #plot fit from labview in cyan
+            py.plot(fitcurvelv(y), y, 'c')
         py.title(name)
         py.xlabel('Voltage (V)')
         py.ylabel('Current (A)')
@@ -255,12 +265,68 @@ def leftright(event):
             sliderindex.set_val(tempindex)
 arrows = fig.canvas.mpl_connect('key_release_event', leftright)
 
+#fit different curves on demand
+def bestpolyall(event):
+    for curve in xrange(0, s[0]):
+        for name in names:
+            linearfit(curve, name, 1)
+    plotcurves(int(sliderindex.val))
+
+def bestpoly(event):
+    for name in names:
+        linearfit(int(sliderindex.val), name, 1)
+    plotcurves(int(sliderindex.val))
+
+def findindexall(event):
+    for curve in xrange(0, s[0]):
+        for name in names:
+            linearfit(curve, name, 2)
+    plotcurves(int(sliderindex.val))
+
+def findindex(event):
+    for name in names:
+        linearfit(int(sliderindex.val), name, 2)
+    plotcurves(int(sliderindex.val))
+    
+def resetall(event):
+    for curve in xrange(0, s[0]):
+        for name in names:
+            values[name][0][curve] = 0
+            values[name][1][curve] = pointsPerCurve
+            linearfit(curve, name, 0)
+    plotcurves(int(sliderindex.val))
+
+def reset(event):
+    curve = int(sliderindex.val)
+    for name in names:
+        values[name][0][curve] = 0
+        values[name][1][curve] = pointsPerCurve
+        linearfit(curve, name, 0)
+    plotcurves(curve)
+    
 #create a save fits button
-axbutt = py.axes([0.025, 0.1, 0.1, 0.03])
-button = Button(axbutt, 'Save Fits')
-#button.on_clicked(saveoutput(names, linregfilename, results))
-button.on_clicked(saveoutput)
-py.show()
+axsave = py.axes([0.025, 0.1, 0.1, 0.03])
+savebutton = Button(axsave, 'Save Fits')
+savebutton.on_clicked(saveoutput)
+#create reset buttons
+axbestpolyall = py.axes([0.025, 0.15, 0.1, 0.03])
+bestpolyallbutton = Button(axbestpolyall, 'Outer Fit All')
+bestpolyallbutton.on_clicked(bestpolyall)
+axbestpoly = py.axes([0.025, 0.3, 0.1, 0.03])
+bestpolybutton = Button(axbestpoly, 'Outer Fit This T/H')
+bestpolybutton.on_clicked(bestpoly)
+axfindindexall = py.axes([0.025, 0.2, 0.1, 0.03])
+findindexallbutton = Button(axfindindexall, 'Inner Fit All')
+findindexallbutton.on_clicked(findindexall)
+axfindindex = py.axes([0.025, 0.35, 0.1, 0.03])
+findindexbutton = Button(axfindindex, 'Inner Fit This T/H')
+findindexbutton.on_clicked(findindex)
+axresetall = py.axes([0.025, 0.25, 0.1, 0.03])
+resetallbutton = Button(axresetall, 'Reset All Fits')
+resetallbutton.on_clicked(resetall)
+axreset = py.axes([0.025, 0.4, 0.1, 0.03])
+resetbutton = Button(axreset, 'Reset This T/H Fit')
+resetbutton.on_clicked(reset)
 
 #bind rectangle selector to select points in IV curve to use for fitting
 def line_select_callback0(eclick, erelease):
@@ -281,7 +347,7 @@ def line_select_callback(eclick, erelease, plotIndex):
     start = 0
     end = pointsPerCurve
     #determine which points in the IV curve are within the rectangle
-    if y[0] < y[1]: #increasing current
+    if y[0] < y[1]: #increasing current - monotonic
         while y[start] < min(y1,y2) and start < pointsPerCurve-1:
             start += 1
         while y[end-1] > max(y1,y2) and end > 0:
@@ -312,3 +378,5 @@ RS0 = RectangleSelector(py.subplot(2,2,plotpos[0]), line_select_callback0, drawt
 RS1 = RectangleSelector(py.subplot(2,2,plotpos[1]), line_select_callback1, drawtype='box', useblit=True, interactive=True)
 RS2 = RectangleSelector(py.subplot(2,2,plotpos[2]), line_select_callback2, drawtype='box', useblit=True, interactive=True)
 RS3 = RectangleSelector(py.subplot(2,2,plotpos[3]), line_select_callback3, drawtype='box', useblit=True, interactive=True)
+
+py.show()
