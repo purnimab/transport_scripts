@@ -31,6 +31,16 @@ else:
     print filename + " is neither RvsH nor RvsT"
     sys.exit(1)
 
+#SEPARATE HEADER FROM DATA
+fileheader = '' #header will be added to the beginning of any output files
+inputfile = open(filename,'r')
+headerline = inputfile.readline()
+while headerline[0:2] == '\\*' and headerline.find('Sample Temp') == -1:
+    fileheader = fileheader + headerline[2:]
+    headerline = inputfile.readline()
+print fileheader
+inputfile.close()
+
 IVCurves = np.genfromtxt(filename, comments='\\*', delimiter='\t', names=('Temperature', 'Field', 'VHallA', 'IHallA', 'VHallB', 'IHallB', 'VVDPA', 'IVDPA', 'VVDPB', 'IVDPB')) #load text into a structured array, ignoring header lines
 print "Reading " + filename
 
@@ -188,7 +198,7 @@ def saveoutput(event):
     names.insert(0,'') #insert an empty string for easy naming of things
     columns = 'Temperature\tField' + '\tRes '.join(names) + '\tErr '.join(names) + '\tDC Off '.join(names) + '\nK\tOe' + '\tOhm'*8 + '\tV'*4
     names.pop(0) #remove the empty string
-    np.savetxt(linregfilename, results, delimiter='\t', header=columns, comments='\\*')
+    np.savetxt(linregfilename, results, delimiter='\t', header=fileheader+columns, comments='\\*')
     sys.stdout.flush()
 
 #values for slider
