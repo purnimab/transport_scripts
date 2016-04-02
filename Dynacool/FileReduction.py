@@ -79,23 +79,31 @@ np.logical_and(columnsWithData, columnsInCh2, columnsInCh2)
 #find out which columns to unstack
 columnsToSplit = np.logical_xor(columnsInCh1, columnsInCh2)
 columnsToKeep = np.logical_and(columnsInCh1, columnsInCh2)
-#find out which columns belong to Resistance/dI-dV or IV Curve measurements
+#find out which columns belong to Resistance/dV-dI or IV Curve measurements
 columnsInRes = np.array([a.find('IV') == -1 for a in columnNames])
+columnsIndVdI = columnsInRes
 columnsInIV = np.array([a.find('Resistance') == -1 and a.find('Phase') == -1 and a.find('Harmonic') == -1 for a in columnNames])
 #combine columns
 columnsInCh1Res = np.logical_and(columnsInCh1, columnsInRes)
 columnsInCh2Res = np.logical_and(columnsInCh2, columnsInRes)
+columnsInCh1dVdI = columnsInCh1Res
+columnsInCh2dVdI = columnsInCh2Res
 columnsInCh1IV = np.logical_and(columnsInCh1, columnsInIV)
 columnsInCh2IV = np.logical_and(columnsInCh2, columnsInIV)
 #figure out which columns are unique to a specific measurement
 colsUniquetoCh1Res = np.logical_and(columnsInCh1Res, np.logical_not(np.logical_or(np.logical_or(columnsInCh2Res, columnsInCh1IV),columnsInCh2IV)))
 colsUniquetoCh2Res = np.logical_and(columnsInCh2Res, np.logical_not(np.logical_or(np.logical_or(columnsInCh1Res, columnsInCh1IV),columnsInCh2IV)))
+colsUniquetoCh1dVdI = colsUniquetoCh1Res
+colsUniquetoCh2dVdI = colsUniquetoCh2Res
 colsUniquetoCh1IV = np.logical_and(columnsInCh1IV, np.logical_not(np.logical_or(np.logical_or(columnsInCh2Res, columnsInCh1Res),columnsInCh2IV)))
 colsUniquetoCh2IV = np.logical_and(columnsInCh2IV, np.logical_not(np.logical_or(np.logical_or(columnsInCh2Res, columnsInCh1IV),columnsInCh1Res)))
 
 #FIGURE OUT WHICH ROWS CORRESPOND TO WHICH COLUMNS
 rowsInCh1Res = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh1Res), axis=1))
 rowsInCh2Res = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh2Res), axis=1))
+#dVdI has the same occupied data columns as Res, so the user must determine whether the data was res or dI/dV (unlike PPMS, T, H are taken at every point so will not be exactly the same)
+rowsInCh1dVdI = rowsInCh1Res
+rowsInCh2dVdI = rowsInCh2Res
 rowsInCh1IV = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh1IV), axis=1))
 rowsInCh2IV = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh2IV), axis=1))
 
@@ -104,12 +112,14 @@ fill_vals = {'<i4':-1, '<f8':np.nan}
 #OUTPUT REDUCED FILES
 ResSimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'Gain_Ch2']
 ResSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'Gain Ch2']
+dVdISimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'AC_Current_Ch1_mA', 'DC_Current_Ch1_mA', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'AC_Current_Ch2_mA', 'DC_Current_Ch2_mA', 'Gain_Ch2']
+dVdISimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'AC Current Ch1 (mA)', 'DC Current Ch1 (mA)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'AC Current Ch2 (mA)', 'DC Current Ch2 (mA)', 'Gain Ch2']
 IVSimpleColumns = ['Temperature_K', 'Field_Oe', 'Sample_Position_deg', 'IV_Current_Ch1_mA', 'IV_Voltage_Ch1_V', 'Gain_Ch1', 'IV_Current_Ch2_mA', 'IV_Voltage_Ch2_V', 'Gain_Ch2']
 IVSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'I-V Current Ch1 (mA)', 'I-V Voltage Ch1 (V)', 'Gain Ch1', 'I-V Current Ch2 (mA)', 'I-V Voltage Ch2 (V)', 'Gain Ch2']
 for chConfig in ('Ch1', 'Ch2'):
     mode = eval('mode' + chConfig)
     numPts = eval('numPts' + chConfig)
-    for measConfig in ('Res', 'IV'):
+    for measConfig in ('Res', 'dVdI', 'IV'):
         if measConfig == 'IV':
             ptsPerCurve = 1025 #256 per quadrant, 4 quadrants
         else:
