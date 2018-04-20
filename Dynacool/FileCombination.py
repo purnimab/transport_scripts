@@ -17,7 +17,11 @@ if len(sys.argv) > 2:
     sortCol = sorts[sys.argv[2]]
 else:
     sortCol = sorts['RvsH']
-mode = ['VDPA', 'VDPB', 'HallA', 'HallB']
+modes = {'VDPandHall':['VDPA', 'VDPB', 'HallA', 'HallB'], 'VDP':['VDPA', 'VDPB'], 'Hall':['HallA', 'HallB']}
+if len(sys.argv) > 3:
+    mode = modes[sys.argv[3]]
+else:
+    mode = modes['VDPandHall']
 if os.path.exists(filename):
     #if the input name is actually a file, figure out the other filenames
     prefix = filename.rpartition('-')[0]
@@ -120,6 +124,7 @@ for wireConfig in mode:
                             datareduced.mask[column][start:] = data.mask[column][rows]
                         except ValueError as a:
                             datareduced.mask[column][start:].fill(True)
+                    #TODO: fix how this deals with rows where there is data for both channels (not using the switchbox)
                     for column in columnNames[np.logical_and(columnsToSplit, columnsWithData)]:
                         newCol = column.replace(chConfig, wireConfig)
                         try:
@@ -149,7 +154,7 @@ for i in xrange(0,2):
             outputfile = open(outfilename, 'wb')
             print "Creating File: " + outfilename
             redLabels = list(np.array(redColLabels)[columnsWithData])
-            dataout = np.sort(datareduced[columnNames[columnsWithData]].filled(), order=['Field_Oe', 'Time_Stamp_s'], kind='mergesort')
+            dataout = np.sort(datareduced[columnNames[columnsWithData]].filled(), order=[sortCol, 'Time_Stamp_s'], kind='mergesort')
             np.savetxt(outputfile, dataout, fmt='%s', delimiter=',', header = header + ','.join(redLabels), comments='')
             outputfile.close()
             
@@ -203,5 +208,5 @@ for i in xrange(0,2):
                             count = count + 1
                     if count > 0:
                         print str(count) + ' resistance points calculated for channel ' + wireConfig
-            np.savetxt(outputfile, np.sort(datasimplified.filled(), order='Field_Oe', kind='mergesort')[::-1], fmt='%s', delimiter=',', header = simpleHeader + ','.join(simpColLabels), comments='#')
+            np.savetxt(outputfile, np.sort(datasimplified.filled(), order=sortCol, kind='mergesort')[::-1], fmt='%s', delimiter=',', header = simpleHeader + ','.join(simpColLabels), comments='#')
             outputfile.close()

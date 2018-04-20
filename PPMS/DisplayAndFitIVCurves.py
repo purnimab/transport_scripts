@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-import pylab as py
+import matplotlib
+matplotlib.use('TkAgg') #in mac, default is MacOSX which doesn't allow the window to be in focus, so can't receive keypresses
 from matplotlib.widgets import Slider, Button, RectangleSelector#, CheckButtons, RadioButtons
+import pylab as py
 import sys
 import numpy as np
 import os.path

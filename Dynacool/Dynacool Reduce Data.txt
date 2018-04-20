@@ -1,0 +1,13 @@
+python
+
+	To split apart a file where different wiring configurations were written to the same channel:
+>%run FileReduction.py [filename] [configuration #1 - default VDPandHall] [# pts - default 1] [configuration #2] [#pts #2]
+
+	To combine files where different wiring configurations were written to different files:
+>%run FileCombination.py [filename or filename beginning] [sweep - default RvsH]
+
+	To only clear columns
+>%run dynacoolClearColumns.py [filename]
+
+	To only split into files by which columns are occupied
+>%run dynacoolFileSplit.py [filename]

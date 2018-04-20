@@ -14,7 +14,7 @@ import numpy as np
 #first argument is the filename to read in
 filename = sys.argv[1]
 head, tail = os.path.splitext(filename)
-modes = {"VDPandHall":['VDPA', 'VDPB', 'HallA', 'HallB'] , "VDP":['VDPA', 'VDPB'], "Hall":['HallA', 'HallB'], "VDPA":['VDPA'], "VDPB":['VDPB'], "HallA":['HallA'], "HallB":['HallB'], "VDPBandHallB":['VDPB', 'HallB']}
+modes = {"VDPandHall":['VDPA', 'VDPB', 'HallA', 'HallB'] , "VDP":['VDPA', 'VDPB'], "Hall":['HallA', 'HallB'], "VDPA":['VDPA'], "VDPB":['VDPB'], "HallA":['HallA'], "HallB":['HallB'], "VDPBandHallB":['VDPB', 'HallB'], "4wire":['4wire']}
 #if there are no more arguments, here are the default settings
 modeCh1 = modes['VDPandHall']
 modeCh2 = modeCh1
@@ -55,7 +55,7 @@ print "Unstacking Channel 2: " + ','.join(modeCh2) + ', ' + str(numPtsCh2) + " p
 headerline = ''
 header = '' #header will be added to the beginning of any output files
 nline = 0
-inputfile = open(filename,'r')
+inputfile = open(filename,'rU')
 while headerline != "[Data]\n":
     headerline = inputfile.readline()
     nline += 1
@@ -107,7 +107,7 @@ rowsInCh2dVdI = rowsInCh2Res
 rowsInCh1IV = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh1IV), axis=1))
 rowsInCh2IV = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh2IV), axis=1))
 
-fill_vals = {'<i4':-1, '<f8':np.nan}
+fill_vals = {'<i4':-1, '<f8':np.nan, '<i8':-1}
 
 #OUTPUT REDUCED FILES
 ResSimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'Gain_Ch2']
