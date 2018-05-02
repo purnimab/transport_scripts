@@ -24,6 +24,38 @@ def readSMULinFitResfile(filename):
     R_VDPB = RvsTdata[:,5]
     return temperature, field, R_VDPA, R_VDPB, R_HallA, R_HallB
 
+#read from Dynacool reduced file, no interpolation - but returns a masked array
+def readDynResSimpdatfileNoInterp(filename):
+    RvsTdata = np.genfromtxt(filename, delimiter=',', skip_header=1, names=True, usemask=True, dtype=None)
+    temperature = RvsTdata['Temperature_K']
+    field = RvsTdata['Field_Oe']
+    R_VDPA = RvsTdata['Resistance_VDPA_Ohms']
+    R_VDPA.mask = np.logical_or(R_VDPA.mask,np.isnan(R_VDPA))
+    R_VDPB = RvsTdata['Resistance_VDPB_Ohms']
+    R_VDPB.mask = np.logical_or(R_VDPB.mask,np.isnan(R_VDPB))
+    if 'Resistance_HallA_Ohms' in RvsTdata.dtype.names:
+        R_HallA = RvsTdata['Resistance_HallA_Ohms']
+        R_HallA.mask = np.logical_or(R_HallA.mask,np.isnan(R_HallA))
+        R_HallB = RvsTdata['Resistance_HallB_Ohms']
+        R_HallB.mask = np.logical_or(R_HallB.mask,np.isnan(R_HallB))
+    else:
+        R_HallA = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
+        R_HallB = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
+    return temperature, field, R_VDPA, R_VDPB, R_HallA, R_HallB
+
+#interpolates resistances taken at slightly different temperatures or fields using a masked array
+def interpolateSwitchboxScan(x, R_list):
+    return (interpSwitchbox(x,r) for r in R_list)
+def interpSwitchbox(x,r):
+    mask = np.logical_and(np.logical_not(r.mask),np.logical_not(x.mask))
+    try:
+        rvsx = interp1d(x.data[mask],r.data[mask],bounds_error=False)
+        rfull = rvsx(x.data)
+    except ValueError as err:
+        rfull = np.zeros_like(x.data)
+        print err
+    return rfull
+
 #interpolate room temperature property
 def roomtemp(temperature,RS):
     RvsT = interp1d(temperature, RS)
