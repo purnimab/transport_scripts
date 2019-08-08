@@ -24,15 +24,35 @@ def readSMULinFitResfile(filename):
     R_VDPB = RvsTdata[:,5]
     return temperature, field, R_VDPA, R_VDPB, R_HallA, R_HallB
 
-#read from Dynacool reduced file, no interpolation - but returns a masked array
+#read from a Dynacool nanovoltmeter linear fit file (order of columns: temp, field, SheetRes)
+def readDynNVSheetResfile(filename):
+    RvsTdata = np.loadtxt(filename, comments='\*')
+    temperature = RvsTdata[:,0]
+    field = RvsTdata[:,1]
+    SheetRes = RvsTdata[:,2]
+    return temperature, field, SheetRes
+
+#read from a Dynacool nanovoltmeter linear fit file (order of columns: temp, field, HallRes)
+def readDynNVHallResfile(filename):
+    RvsTdata = np.loadtxt(filename, comments='\*')
+    temperature = RvsTdata[:,0]
+    field = RvsTdata[:,1]
+    HallRes = RvsTdata[:,2]
+    return temperature, field, HallRes
+
+#read from Dynacool reduced file, no interpolation - but returns masked arrays
 def readDynResSimpdatfileNoInterp(filename):
     RvsTdata = np.genfromtxt(filename, delimiter=',', skip_header=1, names=True, usemask=True, dtype=None)
     temperature = RvsTdata['Temperature_K']
     field = RvsTdata['Field_Oe']
-    R_VDPA = RvsTdata['Resistance_VDPA_Ohms']
-    R_VDPA.mask = np.logical_or(R_VDPA.mask,np.isnan(R_VDPA))
-    R_VDPB = RvsTdata['Resistance_VDPB_Ohms']
-    R_VDPB.mask = np.logical_or(R_VDPB.mask,np.isnan(R_VDPB))
+    if 'Resistance_VDPA_Ohms' in RvsTdata.dtype.names:
+        R_VDPA = RvsTdata['Resistance_VDPA_Ohms']
+        R_VDPA.mask = np.logical_or(R_VDPA.mask,np.isnan(R_VDPA))
+        R_VDPB = RvsTdata['Resistance_VDPB_Ohms']
+        R_VDPB.mask = np.logical_or(R_VDPB.mask,np.isnan(R_VDPB))
+    else:
+        R_VDPA = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
+        R_VDPB = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
     if 'Resistance_HallA_Ohms' in RvsTdata.dtype.names:
         R_HallA = RvsTdata['Resistance_HallA_Ohms']
         R_HallA.mask = np.logical_or(R_HallA.mask,np.isnan(R_HallA))
@@ -42,6 +62,16 @@ def readDynResSimpdatfileNoInterp(filename):
         R_HallA = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
         R_HallB = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
     return temperature, field, R_VDPA, R_VDPB, R_HallA, R_HallB
+
+#read from Dynacool reduced file, all values in a masked array
+def readDynResSimpdatfileFull(filename):
+    RvsTdata = np.genfromtxt(filename, delimiter=',', skip_header=1, names=True, usemask=True, dtype=None)
+    for column in RvsTdata.dtype.names:
+        data = RvsTdata[column]
+        data.mask = np.logical_or(data.mask, np.isnan(data))
+        if 'Gain' in column:
+            data.mask = np.logical_or(data.mask, np.equal(data,-1))
+    return RvsTdata
 
 #interpolates resistances taken at slightly different temperatures or fields using a masked array
 def interpolateSwitchboxScan(x, R_list):

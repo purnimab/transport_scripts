@@ -30,14 +30,14 @@ else:
 
 #define output variables
 dataConc = [[np.ma.masked_array([]), np.ma.masked_array([])], [np.ma.masked_array([]), np.ma.masked_array([])]]
-fill_vals = {'<i4':-1, '<f8':np.nan}
+fill_vals = {'<i4':-1, '<f8':np.nan, '<i8':-1}
 
 #LOOP OVER INPUT FILES
 for wireConfig in mode:
     fname = prefix + '-' + wireConfig + '.dat'
     if os.path.exists(fname):
         print "Reading File: " + fname
-        inputfile = open(fname, 'r')
+        inputfile = open(fname, 'rU')
         #SEPARATE EACH HEADER FROM DATA
         headerline = ''
         header = '' #only the header for the last read file will be kept

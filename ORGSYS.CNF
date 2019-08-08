@@ -1,0 +1,257 @@
+/*********************************************
+ *	Variables Definition:
+ * 	You may define any variables that you
+ * 	would like below, using the syntax
+ *	Key = Value,
+ * 	where key is the variable name, and Value is the value.
+ *
+ ********************************************/
+
+// const defined here are global constants
+//
+const pi = 3.141592653589793
+const electronCharge = 1.602176565E-19 //Coulombs
+const relPermeabilityAir = 1.00000037 // mu/mu_0
+
+/* The following variables are used by Origin, and are
+ * necessary for the proper operation of the program. */
+
+fitnpts = 60
+fitx1 = 1
+fitx2 = 10
+
+TimerCycle=5;	#User installed timer period
+AcceptFit=0.05;	#Norm of Chi^2 to terminate fitting
+FitWtMode = 0;  #Weight method on fit data
+initNfitPts=60;	#Number of data pts used in least square fitting
+		#The initial step size = NumPtsInData/initNfitPts
+AveStep=3;	#Number of points used in Running Averaging
+
+/*
+ *  Baseline related variables
+ */
+
+MV_BASELINE_PTS=12
+/* Number of data points used in cursor move baseline */
+
+/* LR -B DataSet command uses the
+ * following variables
+ */
+
+LR.CHKLINEARR=10
+/* Sets the amount of tolerance in the automatic
+ * determination of linear segments from the data
+ */
+
+LR.MAXLRANGE=40
+/* percentage of the entire data range to
+ * be examined by the find linear segment routine
+ */
+
+
+/*****************************************************************
+ *
+ *
+ The following section contains a number of user-definable macros.
+ *
+ *
+ *****************************************************************/
+
+/* After an empty new document is created */
+def DocBegin { }
+
+def NotReady {
+	ty -b $General.UnderDev;
+}
+
+def new {create %1 -n %2;set %1 -e %2}
+	/* example: new test 100
+	 * create a default data set with 100 elements
+	 */
+
+def Separator { /* draw a line in the script window, %1 = number of columns */
+	
+	repeat %1 {
+		type -L "---------------"
+		/* the -L switch turns off CR/LF */
+	}
+	ty;/* to add the CR/LF */
+}
+
+/* When you double-click the window, Origin
+ * will first try to find the object on the
+ * location, if found, will invoke the corresponding
+ * dialog box. If nothing can be found, the following
+ * macros are executed if defined, otherwise the Hand
+ * appear.
+
+def DBCLayer {
+	ty -b $General.OpenLayer;
+	layer;
+}
+ * inside the layer frame
+ *
+ */
+
+
+/* inside layer bounds but outside layer frame
+def DBCBound Page
+ *
+ */
+
+def DBCPage Page
+/* anywhere else */
+
+//CPY v6.1060 t8670 10/27/00 ZOOM_GROUP_DATA_NEED_EXACT_COPY
+// this macro is rewritten for support exact layer content copying 
+def Enlarger.Ctrl {
+	%B=%H;/* save window name */
+	active = %B!page.active;
+	
+	/// RVD 9/23/2008 qa80-12200 PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+	//	run.section(File,PrepareCopyFormats);
+	/// end PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+	//SDB v7.5836 QA5357 04-22-04 COPY_PASTE_FORMAT_ZOOM_RECT
+	run.section(File,PrepareCopyFormats);
+	/// RVD 9/23/2008 qa80-12200 PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+	//copyformat;
+	CopyZoomFormat;
+	/// end PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+
+	/* get the active layer number and save it */
+	doc -e Open (win -i);/* put all open windows into icons */
+
+	GetNamedWin	Enlarged;
+	layer -ic %B active; // copy original layer's data plots over
+	
+	/// RVD 9/23/2008 qa80-12200 PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+	//run.section(File,PreparePasteFormats);
+	/// end PASTE_FORMAT_OVERWRITES_SPECIAL_ZOOM_LABELS
+	//SDB v7.5836 QA5357 04-22-04 COPY_PASTE_FORMAT_ZOOM_RECT
+	run.section(file,PasteFormats);
+	pasteformatsdialog 0;	
+
+	layer 0;
+	UserPlot.text$="%B";	// Store User's Plot name into a memory object.
+	UserLayer.text$=$(active);	// Store User's Layer number.
+	win -a %B;
+	layer -s active;
+	label -p 50 50;
+	draw -n ZoomRect -File Read ZoomRect.OGO;/* read ZoomRect.OGO in as ZoomRect */
+	win -system Tile;
+	///CPY v4.12 7/22/96 CNTRL_ZOOM_FIX, need to run this after we update the location
+	//draw -n ZoomRect -Run;/* run its script */
+	/* CPY v3.74 , size/move it to the right place */
+	ZoomRect.script=0;
+	#!v1=;v2=;v3=;v4=;%H=;
+	ZoomRect.dx=(v3-v1);
+	ZoomRect.dy=(v4-v2);
+	ZoomRect.x=(v1+zoomrect.dx/2);
+	ZoomRect.y=(v2+zoomrect.dy/2);
+	ZoomRect.script=4;			/* run after move OR SIZED  */
+	
+	draw -n ZoomRect -Run;/// CNTRL_ZOOM_FIX moved from above 
+}
+
+
+/* run the script of the named graphic object */
+def doButton {
+	draw -n %1 -r;
+}
+
+/* from %C to generate %B for the
+ * specified type of curve
+ */
+
+def GetCuvName {
+	%B="%(count,@W)%(count,@C)%1";
+		/* %B is the name of the interpolated curve */
+	if(%[%B]>24) /* name too long */
+	{
+		doc -cs %1;
+		%B=%1$(count+1);
+	}
+}
+
+
+/// RB 10/6/98 v6.130 NO_LONGER_UIM_TOOLBAR
+///* version 3.53 test ObjEdit id */
+//dotool -wi ObjEdit 9999 0;
+/// end NO_LONGER_UIM_TOOLBAR
+/* CPY v3.61, add contour plot id in here so that
+ * contour plots can be opened from file manager
+ */
+///CPY v3.84 RENAME_TO_40
+//DLL -Draw Contour 226
+DLL -Draw labcnt40 226
+DLL -Draw labpie40 225;
+/* initialize the Pie DLL
+ * the name of the DLL is OrgPie
+ * the ID for the DLL is 225
+ * nothing is done if already init
+ * The DLL needs to be invoked during initialization */
+
+/* version 3.83	*/
+/* ArrangeLayers nRow nCol
+ * Assume xGap, yGap, top, left,right,bottm
+ */
+def ArrangeLayers {
+/* use x and y as temperary variables width and height
+ * %1 = nRow
+ * %2 = nCol
+ */
+	x = 100 - Left - Right - (%2-1)*xGap;
+	x/=%2;
+	y = 100 - Top - Bottom - (%1-1)*yGap;
+	y/=%1;
+
+	if(x < 5 || y < 5) {
+		ty -b $General.SmallLayer;
+		break 1;
+	};
+
+	k = 0;
+	for(i = 1; i <= %1; i+=1) {
+		for(j = 1; j <= %2; j+=1) {
+
+			/* skip all the child layers */
+			for(k+=1;k <=page.nlayers;k+=1) {
+				#!k=;
+				layer -s k;
+				if(layer.link == 0 || layer.unit != 7) break;
+			};
+
+			layer -u 1;/* make sure unit is 1 which is % of page */
+			if(%2==1) { /* one column, put layer 1 at bottom */
+				layer x y [Left+(j-1)*(x + xGap)] [Top+(%1 - i)*(y + yGap)];
+			}
+			else {
+				layer x y [Left+(j-1)*(x + xGap)] [Top+(i-1)*(y + yGap)];
+			};
+		}
+	};
+}
+
+/* this macro is used in initializing various
+ * fitting functions
+ * The parameters in limit.??? is assumed
+ * set x0, y0 accordingly
+ */
+
+def SetXYoffset {
+	/* CPY v3.53 add argument */
+	minoffset = %1;
+		/* consider zero offset if 5% from zero */
+	x0 = limit.xmin;
+	if(abs(x0/(limit.xmax-x0)) < minoffset) {
+		x0 = 0
+	};
+
+	y0 = limit.ymin;
+	if(abs(y0/(limit.ymax-y0)) < minoffset) {
+		y0 = 0
+	};
+	del -v minoffset;
+	#!x0=;y0=;
+}
+/* CPY v3.493 EXPG */
