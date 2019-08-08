@@ -66,3 +66,6 @@ FittedData
 FittedDataNV
 RawIVCurves
 RawIVCurvesNV
+
+#Mac backups
+._*
