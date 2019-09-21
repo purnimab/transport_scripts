@@ -124,7 +124,7 @@ def find_best_polyfit(index, name):
     #set limits
     values[name][0][index] = low
     values[name][1][index] = high
-    
+
 #starting from middle
 def fitresfindindex(index, name):
     i = IVCurves['I'+name][index]
@@ -162,7 +162,7 @@ def fitresfindindex(index, name):
     #set limits
     values[name][0][index] = lower
     values[name][1][index] = upper
-            
+
 def linearfit(index, name, findIndex): #findIndex = 0: use given limits, 1: find limits from outside, 2: find limits from middle
     if findIndex == 1:
         find_best_polyfit(index, name)
@@ -172,11 +172,14 @@ def linearfit(index, name, findIndex): #findIndex = 0: use given limits, 1: find
     v = IVCurves['V'+name][index]
     start = values[name][0][index]
     end = values[name][1][index]
-    slope, intercept, r2, p, err = stats.linregress(i[start:end], v[start:end]) 
-    #p, cov = np.polyfit(i[start:end], v[start:end], 1, cov=True)
-    results['Res'+name][index] = slope #p[0]
-    results['DCOff'+name][index] = intercept #p[1]
-    results['Err'+name][index] = err #cov[0,0]
+    if np.abs(end-start) > 1:
+        slope, intercept, r2, p, err = stats.linregress(i[start:end], v[start:end])
+        #p, cov = np.polyfit(i[start:end], v[start:end], 1, cov=True)
+        results['Res'+name][index] = slope #p[0]
+        results['DCOff'+name][index] = intercept #p[1]
+        results['Err'+name][index] = err #cov[0,0]
+    else:
+        print 'No points in this region to fit'
 
 #Get Linear regression, either calculated or from existing file calculated by python
 linregfilename = 'LinFitPy'.join(filename.rsplit('IVCurves',1)) # replaces the last occurrence of IVCurves with LinFitPy
@@ -189,7 +192,7 @@ else:
     results = np.zeros(s[0], dtype=[('Temperature', '<f8'), ('Field', '<f8')] + [('Res'+name, '<f8') for name in names] + [('Err'+name, '<f8') for name in names] + [('DCOff'+name, '<f8') for name in names])
     results['Temperature'] = IVCurves['Temperature'][:,0] #T, H are the same for each curve, so arbitrarily choose the first value
     results['Field'] = IVCurves['Field'][:,0]
-    
+
     for curve in xrange(0, s[0]):
         for i in xrange(0,4):
             linearfit(curve, names[i], 1) #1 means to iterate through the fit to find outliers from outside, 2 from inside
@@ -222,13 +225,13 @@ maxindex = s[0]-1
 #create a figure
 fig = py.figure(figsize=(20,15))
 py.subplots_adjust(left=0.25, bottom=0.25)
-py.hold(True)
+#py.hold(True) - deprecated
 
 #plot curves - called every time the IVcurve index is changed
 def plotcurves(index):
     #pick out data for a specific temperature/field index
     curve = IVCurves[index]
-    
+
     #plot each curve
     for i in xrange(0,4):
         #plotcurve(index, i)
@@ -258,14 +261,14 @@ def plotcurves(index):
         py.title(name)
         py.xlabel('Voltage (V)')
         py.ylabel('Current (A)')
-    
+
     py.suptitle(str(curve['Temperature'][0])+" K, "+str(curve['Field'][0])+" Oe", size='x-large', x = .55, y = .2)
     py.draw()
     #py.hold(False)
 plotcurves(tempindex)
 
 #create a slider
-axindex = py.axes([0.25, 0.1, 0.65, 0.03], axisbg='lightgoldenrodyellow')
+axindex = py.axes([0.25, 0.1, 0.65, 0.03], facecolor='lightgoldenrodyellow')
 sliderindex = Slider(axindex, 'IV Curve #', minindex, maxindex, valinit=tempindex, dragging=True, valfmt='%1.0f')
 
 #when the slider value changes, the index of the IV curve also changes
@@ -310,7 +313,7 @@ def findindex(event):
     for name in names:
         linearfit(int(sliderindex.val), name, 2)
     plotcurves(int(sliderindex.val))
-    
+
 def resetall(event):
     for curve in xrange(0, s[0]):
         for name in names:
@@ -326,13 +329,13 @@ def reset(event):
         values[name][1][curve] = pointsPerCurve
         linearfit(curve, name, 0)
     plotcurves(curve)
-    
+
 def recalculate(event):
     for curve in xrange(0,s[0]):
         for name in names:
             linearfit(curve, name, 0)
     plotcurves(curve)
-    
+
 #create a save fits button
 axsave = py.axes([0.025, 0.1, 0.1, 0.03])
 savebutton = Button(axsave, 'Save Fits')
