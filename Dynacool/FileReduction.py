@@ -20,32 +20,39 @@ modeCh1 = modes['VDPandHall']
 modeCh2 = modeCh1
 numPtsCh1 = 1
 numPtsCh2 = numPtsCh1
+
+def getMode(s):
+    if s in modes:
+        return modes[s]
+    else:
+        return [s]
+
 #second argument is the unstacking mode for Ch1 (order points were taken in)
 if len(sys.argv) == 3:
-    modeCh1 = modes[sys.argv[2]]
+    modeCh1 = getMode(sys.argv[2])
     modeCh2 = modeCh1
 #third argument is either the number of times each channel is repeated or the unstacking mode for Ch2
 elif len(sys.argv) == 4:
-    modeCh1 = modes[sys.argv[2]]
+    modeCh1 = getMode(sys.argv[2])
     try:
         numPtsCh1 = int(sys.argv[3])
         modeCh2 = modeCh1
         numPtsCh2 = numPtsCh1
     except ValueError as a:
-        modeCh2 = modes[sys.argv[3]]
+        modeCh2 = getMode(sys.argv[3])
 elif len(sys.argv) == 5:
-    modeCh1 = modes[sys.argv[2]]
+    modeCh1 = getMode(sys.argv[2])
     try: #VDPA 2 VDPB would have ch2 have 1 pt per config
         numPtsCh1 = int(sys.argv[3])
-        modeCh2 = modes[sys.argv[4]]
+        modeCh2 = getMode(sys.argv[4])
     except ValueError as a: #VDPA VDPB 2 would have chs 1 and 2 have 2 pts per 
-        modeCh2 = modes[sys.argv[3]]
+        modeCh2 = getMode(sys.argv[3])
         numPtsCh1 = int(sys.argv[4])
         numPtsCh2 = numPtsCh1
 elif len(sys.argv) > 5:
-    modeCh1 = modes[sys.argv[2]]
+    modeCh1 = getMode(sys.argv[2])
     numPtsCh1 = int(sys.argv[3])
-    modeCh2 = modes[sys.argv[4]]
+    modeCh2 = getMode(sys.argv[4])
     numPtsCh2 = int(sys.argv[5])
 print "Reading File: " + filename
 print "Unstacking Channel 1: " + ','.join(modeCh1) + ', ' + str(numPtsCh1) + " points each"
@@ -110,12 +117,12 @@ rowsInCh2IV = np.where(np.any(np.logical_and(notmissing, colsUniquetoCh2IV), axi
 fill_vals = {'<i4':-1, '<f8':np.nan, '<i8':-1}
 
 #OUTPUT REDUCED FILES
-ResSimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'Gain_Ch2']
-ResSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'Gain Ch2']
-dVdISimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'AC_Current_Ch1_mA', 'DC_Current_Ch1_mA', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'AC_Current_Ch2_mA', 'DC_Current_Ch2_mA', 'Gain_Ch2']
-dVdISimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'AC Current Ch1 (mA)', 'DC Current Ch1 (mA)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'AC Current Ch2 (mA)', 'DC Current Ch2 (mA)', 'Gain Ch2']
-IVSimpleColumns = ['Temperature_K', 'Field_Oe', 'Sample_Position_deg', 'IV_Current_Ch1_mA', 'IV_Voltage_Ch1_V', 'Gain_Ch1', 'IV_Current_Ch2_mA', 'IV_Voltage_Ch2_V', 'Gain_Ch2']
-IVSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'I-V Current Ch1 (mA)', 'I-V Voltage Ch1 (V)', 'Gain Ch1', 'I-V Current Ch2 (mA)', 'I-V Voltage Ch2 (V)', 'Gain Ch2']
+ResSimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'Gain_Ch2','Time_Stamp_s']
+ResSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'Gain Ch2','Time Stamp (s)']
+dVdISimpleColumns = ['Temperature_K', 'Field_Oe','Sample_Position_deg','Resistance_Ch1_Ohms', 'Phase_Angle_Ch1_deg', 'AC_Current_Ch1_mA', 'DC_Current_Ch1_mA', 'Gain_Ch1', 'Resistance_Ch2_Ohms', 'Phase_Angle_Ch2_deg', 'AC_Current_Ch2_mA', 'DC_Current_Ch2_mA', 'Gain_Ch2','Time_Stamp_s']
+dVdISimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'Resistance Ch1 (Ohms)', 'Phase Angle Ch1 (deg)', 'AC Current Ch1 (mA)', 'DC Current Ch1 (mA)', 'Gain Ch1', 'Resistance Ch2 (Ohms)', 'Phase Angle Ch2 (deg)', 'AC Current Ch2 (mA)', 'DC Current Ch2 (mA)', 'Gain Ch2','Time Stamp (s)']
+IVSimpleColumns = ['Temperature_K', 'Field_Oe', 'Sample_Position_deg', 'IV_Current_Ch1_mA', 'IV_Voltage_Ch1_V', 'Gain_Ch1', 'IV_Current_Ch2_mA', 'IV_Voltage_Ch2_V', 'Gain_Ch2','Time_Stamp_s']
+IVSimpleLabels = ['Temperature (K)', 'Field (Oe)', 'Sample Position (deg)', 'I-V Current Ch1 (mA)', 'I-V Voltage Ch1 (V)', 'Gain Ch1', 'I-V Current Ch2 (mA)', 'I-V Voltage Ch2 (V)', 'Gain Ch2','Time Stamp (s)']
 for chConfig in ('Ch1', 'Ch2'):
     mode = eval('mode' + chConfig)
     numPts = eval('numPts' + chConfig)
