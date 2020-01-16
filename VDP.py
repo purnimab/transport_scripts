@@ -41,6 +41,18 @@ def readDynNVHallResfile(filename):
     return temperature, field, HallRes
 
 #read from Dynacool reduced file, no interpolation - but returns masked arrays
+def readDynResSimpdatfileOneCol(filename,colName):
+    RvsTdata = np.genfromtxt(filename, delimiter=',', skip_header=1, names=True, usemask=True, dtype=None)
+    temperature = RvsTdata['Temperature_K']
+    field = RvsTdata['Field_Oe']
+    if 'Resistance_'+colName+'_Ohms' in RvsTdata.dtype.names:
+        R = RvsTdata['Resistance_'+colName+'_Ohms']
+        R.mask = np.logical_or(R.mask,np.isnan(R))
+    else:
+        R = np.ma.array(np.zeros_like(temperature), mask=np.ones_like(temperature))
+    return temperature, field, R
+
+#read from Dynacool reduced file, no interpolation - but returns masked arrays
 def readDynResSimpdatfileNoInterp(filename):
     RvsTdata = np.genfromtxt(filename, delimiter=',', skip_header=1, names=True, usemask=True, dtype=None)
     temperature = RvsTdata['Temperature_K']
@@ -134,3 +146,8 @@ def vdpfar(R_VDPA, R_VDPB):
     guess = (R_VDPA+R_VDPB)*np.pi/np.log(2)
     RS = fsolve(vdpfarfunc, guess, (R_VDPA, R_VDPB), xtol=1.49012e-08)
     return RS
+
+def twoBand(H,n1,mu1,n2,mu2):
+    e = -1.60217662e-19 #C
+    right = (n1+n2)*((mu1*mu2*H)**2)
+    return 1e-8*H*((n1*mu1**2+n2*mu2**2)+right)/((np.abs(n1)*mu1+np.abs(n2)*mu2)**2+right*(n1+n2))/e
