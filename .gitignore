@@ -69,3 +69,5 @@ RawIVCurvesNV
 
 #Mac backups
 ._*
+*.dat
+*.jpg
